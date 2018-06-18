@@ -17,7 +17,7 @@ Created on Mon Mar 12 13:34:00 2018
 # import required packages
 import numpy as np
 from pymcmcstat.MCMC import MCMC
-from pymcmcstat.EllipseContour import EllipseContour
+from pymcmcstat.plotting.utilities import generate_ellipse
 import matplotlib.pyplot as plt
 
 class Banana_Parameters:
@@ -102,9 +102,8 @@ mcstat.mcmcplot.plot_pairwise_correlation_panel(chain[:,0:2], names[0:2])
 c50 = 1.3863 # critical values from chisq(2) distribution
 c95 = 5.9915
 
-ellipse = EllipseContour()
-xe50, ye50 = ellipse.generate_ellipse(udobj.mu, c50*udobj.sig[0:2,0:2])
-xe95, ye95 = ellipse.generate_ellipse(udobj.mu, c95*udobj.sig[0:2,0:2])
+xe50, ye50 = generate_ellipse(udobj.mu, c50*udobj.sig[0:2,0:2])
+xe95, ye95 = generate_ellipse(udobj.mu, c95*udobj.sig[0:2,0:2])
 bxy50 = bananafunction(np.array([xe50, ye50]).T, udobj.a, udobj.b)
 bxy95 = bananafunction(np.array([xe95, ye95]).T, udobj.a, udobj.b)
 
