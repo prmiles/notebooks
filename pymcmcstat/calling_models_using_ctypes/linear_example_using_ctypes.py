@@ -52,7 +52,7 @@ mcstat.parameters.add_model_parameter(name = 'm', theta0 = 1., minimum = -10, ma
 mcstat.parameters.add_model_parameter(name = 'b', theta0 = -5., minimum = -10, maximum = 100)
 
 # update simulation options
-mcstat.simulation_options.define_simulation_options(nsimu = int(5.0e3), updatesigma = 1, method = 'dram', adaptint = 100, verbosity = 1, waitbar = 1)
+mcstat.simulation_options.define_simulation_options(nsimu = int(10.0e3), updatesigma = 1, method = 'dram', adaptint = 100, verbosity = 1, waitbar = 1)
 
 # update model settings
 mcstat.model_settings.define_model_settings(sos_function = test_ssfun)
@@ -70,17 +70,17 @@ sschain = results['sschain']
 names = results['names']
 
 # define burnin
-burnin = 2000
+burnin = int(results['nsimu']/2)
 # display chain statistics
 mcstat.chainstats(chain[burnin:,:], results)
 # generate mcmc plots
 mcpl = mcstat.mcmcplot # initialize plotting methods
-mcpl.plot_density_panel(chain[burnin:,:], names)
-mcpl.plot_chain_panel(chain[burnin:,:], names)
-mcpl.plot_pairwise_correlation_panel(chain[burnin:,:], names)
+mcpl.plot_density_panel(chain[burnin:,:], names, figsizeinches=(4,4))
+mcpl.plot_chain_panel(chain[burnin:,:], names, figsizeinches=(4,4))
+mcpl.plot_pairwise_correlation_panel(chain[burnin:,:], names, figsizeinches=(4,4))
 
 # plot data & model
-plt.figure()
+plt.figure(dpi=100, figsize=(4,4))
 plt.plot(x,y,'.k')
 plt.plot(x, m*x + b, '-r')
 model = cpplm(results['mean'][0], results['mean'][1], x, nds)
@@ -91,4 +91,4 @@ def pred_modelfun(preddata, theta):
     return cpplm(theta[0], theta[1], preddata.xdata[0], nds)
 mcstat.PI.setup_prediction_interval_calculation(results = results, data = mcstat.data, modelfunction = pred_modelfun)
 mcstat.PI.generate_prediction_intervals()
-mcstat.PI.plot_prediction_intervals(adddata = True)
+mcstat.PI.plot_prediction_intervals(adddata = True, figsizeinches=(6,6))
