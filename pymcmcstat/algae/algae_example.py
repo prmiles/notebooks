@@ -25,7 +25,7 @@ import scipy.io as sio
 
 from pymcmcstat.MCMC import MCMC
 # for graphics
-from pymcmcstat.MCMCPlotting import MCMCPlotting
+from pymcmcstat.plotting import MCMCPlotting
 
 # load Algae data
 algaedata = sio.loadmat('algaedata.mat')
@@ -81,7 +81,7 @@ names = results['names'] # parameter names
 # display chain stats
 mcstat.chainstats(chain, results)
 
-mcpl = MCMCPlotting()
+mcpl = MCMCPlotting
 # plot chain panel
 mcpl.plot_chain_panel(chain, names, figsizeinches = [7, 6])
 
