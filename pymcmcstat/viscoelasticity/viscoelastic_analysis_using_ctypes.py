@@ -13,6 +13,8 @@ from pymcmcstat.MCMC import MCMC
 from pymcmcstat.settings.DataStructure import DataStructure
 import matplotlib.pyplot as plt
 from time import time as timetest
+import ctypes
+from numpy.ctypeslib import ndpointer
 
 # Load data for VHB 4910
 vhbdata = sio.loadmat('vhb4910_data.mat')
@@ -20,9 +22,18 @@ time = vhbdata['data']['xdata'][0][0][:,0]
 stretch = vhbdata['data']['xdata'][0][0][:,1]
 stress = vhbdata['data']['ydata'][0][0][:,0]
 
+nds = len(time)
+
 # Define test parameters
 theta0 = {'Gc': 7.5541, 'Ge': 17.69, 'lam_max': 4.8333, 'eta': 33.77, 'gamma': 0.206}
 theta0vec = list(theta0.values())
+
+# Define C++ model
+## Define hyperelastic model
+#hyplib = ctypes.cdll.LoadLibrary('./nonaffine_hyperelastic_model.so')
+#nhm = hyplib.nonaffine_hyperelastic_model
+#nhm.restype = ndpointer(dtype = ctypes.c_double, shape=(nds,))
+#nhm.argtypes = [ctypes.c_float, ctypes.c_float, ctypes.c_float, ndpointer(ctypes.c_double), ctypes.c_int]
 
 # Define hyperelastic model
 def nonaffine_hyperelastic_model(theta, stretch):
@@ -43,9 +54,17 @@ def nonaffine_hyperelastic_model(theta, stretch):
     sigma_inf = Hc + He - p/stretch;
     return sigma_inf.reshape([sigma_inf.size, 1])
 
+# Define viscoelastic model
+vislib = ctypes.cdll.LoadLibrary('./linear_viscoelastic_model.so')
+linear_viscoelastic_model = vislib.linear_viscoelastic_model
+linear_viscoelastic_model.restype = ndpointer(dtype = ctypes.c_double, shape=(nds,1))
+linear_viscoelastic_model.argtypes = [ctypes.c_float, ctypes.c_float, ndpointer(ctypes.c_double), ndpointer(ctypes.c_double), ctypes.c_int]
+
 # Test hyperelastic model evaluation
 sigma_inf = nonaffine_hyperelastic_model(theta0, stretch)
-#plt.plot(stretch, sigma_inf)
+
+# Test viscoelastic model evaluation
+q = linear_viscoelastic_model(theta0vec[3], theta0vec[4], stretch, time, nds)
 
 n = 100
 st = timetest()
@@ -54,35 +73,11 @@ for ii in range(n):
 et = timetest()
 print('NHM function evaluation time: {} ms'.format((et - st)/n*1e3))
 
-# Define linear viscoelastic model
-def linear_viscoelastic_model(theta, stretch, time):
-    # unpack model parameters
-    eta = theta['eta']
-    gamma = theta['gamma']
-    
-    tau = eta/gamma # viscoelastic time constant
-    
-    dt = np.ones([stretch.size]) # time step
-    dt[1:] = time[1:]-time[0:-1]
-    n = stretch.size
-    q = np.zeros([n,1])
-    for kk in range(1,n):
-        Tnc = 1 - dt[kk]/(2*tau);
-        Tpc = 1 + dt[kk]/(2*tau);
-        Tpcinv = Tpc**(-1);
-        q[kk] = Tpcinv*(Tnc*q[kk-1] + gamma*(stretch[kk] - stretch[kk-1]));
-    return q
-# Test viscoelastic model evaluation
-q = linear_viscoelastic_model(theta0, stretch, time)
-#plt.plot(stretch, q)
-
-# Plot total stress
-#plt.plot(stretch, sigma_inf + q)
 
 n = 100
 st = timetest()
 for ii in range(n):
-    __ = linear_viscoelastic_model(theta0, stretch, time)
+    __ = linear_viscoelastic_model(theta0vec[3], theta0vec[4], stretch, time, nds)
 et = timetest()
 print('LVM function evaluation time: {} ms'.format((et - st)/n*1e3))
 
@@ -101,10 +96,11 @@ def ssfun(t, data):
     # Unpack data structure
     time = data.xdata[0][:,0]
     stretch = data.xdata[0][:,1]
+    nds = data.n[0]
     # Assign model parameters
     theta = {'Gc': t[0], 'Ge': t[1], 'lam_max': t[2], 'eta': t[3], 'gamma': t[4]}
     # Evaluate model
-    stress_model = nonaffine_hyperelastic_model(theta, stretch) + linear_viscoelastic_model(theta, stretch, time)
+    stress_model = nonaffine_hyperelastic_model(theta, stretch) + linear_viscoelastic_model(theta['eta'], theta['gamma'], stretch, time, nds)
     # Calculate sum-of-squares error
     res = data.ydata[0] - stress_model
     ss = np.dot(res.T, res)
@@ -145,7 +141,7 @@ mcstat.mcmcplot.plot_pairwise_correlation_panel(chain, names, figsizeinches=(4,4
 def predmodelfun(data, t):
     xdata = data.user_defined_object[0]
     theta = {'Gc': t[0], 'Ge': t[1], 'lam_max': t[2], 'eta': t[3], 'gamma': t[4]}
-    stress = nonaffine_hyperelastic_model(theta, xdata[:,1]) + linear_viscoelastic_model(theta, xdata[:,1], xdata[:,0])
+    stress = nonaffine_hyperelastic_model(theta, xdata[:,1]) + linear_viscoelastic_model(theta['eta'], theta['gamma'], xdata[:,1], xdata[:,0], xdata.shape[0])
     return stress
 
 # plot wrt time
